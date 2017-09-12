@@ -8,3 +8,7 @@ A project to explore all things Drupal 7
   - Via Drush
     - ` $ drush dl drupal --drupal-project-rename=example `
     - ` $ drush dl drupal --destination={$directory} `
+    
+---
+
+    
