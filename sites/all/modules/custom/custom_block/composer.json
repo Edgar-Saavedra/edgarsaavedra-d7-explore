@@ -1,0 +1,13 @@
+{
+    "name": "edgar/custom_block",
+    "authors": [
+        {
+            "name": "Edgar Saavedra",
+            "email": "edgarsaavedraa@gmail.com"
+        }
+    ],
+    "require": {
+        "league/oauth2-client": "^2.2",
+        "league/oauth1-client": "^1.7"
+    }
+}

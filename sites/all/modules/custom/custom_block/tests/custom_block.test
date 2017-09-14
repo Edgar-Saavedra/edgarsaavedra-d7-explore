@@ -1,0 +1,41 @@
+<?php
+
+/**
+	* @file
+	* Test for the custom_block module
+	*/
+
+/**
+	* Class CustomBlockTestCase
+	* You can if you would like create multiple test cases in the
+	* same .test file
+	*/
+class CustomBlockTestCase extends DrupalWebTestCase {
+		static public function getInfo() {
+				return array(
+					 'name' => 'Custom Block Functionality',
+						'description' => 'Test blocks in the custom_block module',
+						'group' => 'custom_block',
+				);
+		}
+	public function setUp() {
+//		parent::setUp('custom_block');
+		parent::setUp();
+	}
+
+	public function testBlockInfo() {
+//		module_invoke() function calls a particular hook for a particular module.
+//		The module_invoke() method takes two parameters: The name of the module
+//		and the name of the hook to call
+		$info = module_invoke('custom_block','block_info');
+		$this->assertEqual(1,count($info),t('Module defines a block'));
+		$this->assertTrue(isset($info['list_modules']),t('Module list exists'));
+	}
+
+	public function testBlockView() {
+		$data = module_invoke('custom_block','block_view','list_modules');
+		$this->assertTrue(is_array($data),t('Block return renderable array'));
+		$this->assertEqual(t('Enabled Modules'),$data['subject'],t('Subject is set properly'));
+	}
+
+}

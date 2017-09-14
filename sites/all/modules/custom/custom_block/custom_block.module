@@ -1,0 +1,614 @@
+<?php
+include('vendor/autoload.php');
+
+// $Id$
+/**
+	* @file
+	*
+	* A module exemplifying Drupal coding practices and APIs.
+	*
+	*	This module provides a block that lists all of the
+	* installed modules. It illustrates coding standards,
+	* practices, and API use for Drupal 7.
+	*/
+
+/**
+	* Implements hook_help()
+	*/
+function custom_block_help($path,$arg) {
+	if($path == 'admin/help#custom_block')
+	{
+		// Because the t() function is responsible for translating strings from one language into other.
+
+		//The t() function provides an alternate, and more secure, method for replacing placeholders in text with a value.
+		// @ Drupal sanitizes the value using its internal check_plain() function
+		// $values = array('@user' => $username);
+
+		// If you are sure that the string doesn't contain any dangerous information, you can use a different symbol to begin your placeholder: the exclamation mark (!).
+		// $values = array('!url' => 'http://example.com');
+		// print t('The website can be found at !url', $values);
+
+		// Finally, there is a third placeholder decorator: the percent sign (%) tells Drupal to escape the code and to mark it as emphasized.
+		// $values = array('%color' => 'blue');
+		// print t('My favorite color is %color.', $values);
+		// Not only will this remove any dangerous characters from the value, but it will also insert markup to treat that text as emphasized text.
+
+		// print t('Welcome, @user', $values);
+		return t('A demo module');
+	}
+}
+
+/**
+	* implements hook_block_info()
+	* @link https://api.drupal.org/api/drupal/modules%21block%21block.api.php/function/hook_block_info/7.x
+	* This is used to tell Drupal about the new block or blocks that we will declare
+	*/
+function custom_block_block_info() {
+	$blocks = array();
+	$blocks['list_modules'] = array(
+		'info' => t('A listing of all the enabled modules'),
+		'cache' => DRUPAL_NO_CACHE
+	);
+	return $blocks;
+}
+
+/**
+	* implements hook_block_view()
+	*
+	* This tells Drupal what to do when a block is requested for viewing
+	*/
+function custom_block_block_view($block_name = '') {
+	if($block_name == 'list_modules') {
+		$list = \module_list();
+		$theme_args = array(
+			'items' => $list,
+			'type'  => 'ol'
+		);
+		//Avoid calling this function directly. It is preferable to replace
+		// direct calls to the theme() function with calls to drupal_render()
+		// by passing a render array with a #theme key to drupal_render(),
+
+		//NOTE: theme() takes one or two arguments:
+//		• The name of the theme operation
+//		• An associative array of variables to pass onto the theme operation
+
+//			$content = \theme('item_list',$theme_args);
+
+		// render array overview : https://www.drupal.org/docs/7/api/render-arrays/render-arrays-overview
+		// see more on render arrays: https://www.drupal.org/node/930760
+
+		// all default theme hooks : https://api.drupal.org/api/drupal/modules%21system%21theme.api.php/group/themeable/7.x
+		// NOTE : each variable needs to be prefixed with a #, along with the theme function.
+		$my_args = array(
+			'#theme' => 'custom_block_listing',
+			'#da_items' => $list,
+			'#da_wrappa'  => 'ol',
+//				'#title' => 'title',
+			'#attributes' => array(),
+		);
+		$content = drupal_render($my_args);
+		$my_args2 = array(
+			'#theme' => 'custom_block_print_form',
+		);
+		$content .= drupal_render($my_args2);
+		$block = array(
+			'subject' => t('Enabled Modules'),
+			'content' => $content
+		);
+//		dsm($block);
+		return $block;
+	}
+}
+
+
+/**
+	* implements hook_theme()
+	* @link	https://api.drupal.org/api/drupal/modules%21system%21system.api.php/function/hook_theme/7.x
+	* @param $existing An array of existing implementations that may be used for override purposes
+	* @param $type Whether a theme, module, etc. is being processed
+	* @param $theme The actual name of theme, module, etc. that is being being processed
+	* @param $path The directory path of the theme or module, so that it doesn't need to be looked up
+	* @return string
+	*/
+function custom_block_theme($existing, $type, $theme, $path)
+{
+	return array(
+		'custom_block_listing' => array(
+			'render element' => 'form',
+			'variables' => array(
+				'da_items' => array(),
+				'da_wrappa' => null
+			),
+			'template' => 'templates/mymodule-template'
+		),
+
+		'custom_block_print_form' => array(
+			'render element' => 'myrenderable', // this will hold any variables pass to our renderable array
+			'function' => 'control_the_themeing'
+		)
+	);
+}
+
+/**
+	* implements hook_menu()
+	* @return mixed
+	*/
+function custom_block_menu() {
+	$items = array();
+	$items['mc-callback'] = array(
+		'page callback' => 'mc_callback',
+		'access callback' => true,
+	);
+	$items['mc-connect'] = array(
+		'page callback' => 'mc_connect',
+		'access callback' => true,
+	);
+
+	$items['twitter-callback'] = array(
+		'page callback' => 'twitter_callback',
+		'access callback' => true,
+	);
+
+	$items['twitter-connect'] = array(
+		'page callback' => 'twitter_connect',
+		'access callback' => true,
+	);
+	return $items;
+}
+
+
+
+/**
+	* A callback function for a custom theme hook
+	* @param $variables
+	* @return string
+	*/
+function control_the_themeing($variables){
+	$form = drupal_get_form('output_a_custom_form');
+	$form_mc = drupal_get_form('output_mc_form');
+	$form_twitter = drupal_get_form('output_a_twitter_form');
+//	dsm(variable_get('mc_clientid'));
+//	dsm(variable_get('mc_clientsecret'));
+	$output = '<h1>This is the custom Form! </h1>' . drupal_render($form) . drupal_render($form_mc) .drupal_render($form_twitter);
+	return $output;
+}
+
+/**
+	* A drupal form
+	* @param $form
+	* @param $form_state
+	* @return mixed
+	*/
+function output_a_twitter_form($form, &$form_state){
+	$form['clientid'] = array(
+		'#type' => 'textfield', //you can find a list of available types in the form api
+		'#title' => 'clientid',
+		'#required' => TRUE, //make this field required
+		'#prefix' => '<div id="the-twitter-form"><h1>Add twitter creds</h1>',
+	);
+	$form['clientsecret'] = array(
+		'#type' => 'textfield', //you can find a list of available types in the form api
+		'#title' => 'clientsecret',
+		'#required' => TRUE, //make this field required
+	);
+	$form['submit_button'] = array(
+		'#type' => 'submit',
+		'#value' => t('Click Here!'),
+		'#suffix' => '</div>',
+	);
+	return $form;
+}
+
+/**
+	* Submit handler on drupal form
+	* @param $form
+	* @param $form_state
+	* @return mixed
+	*/
+function output_a_twitter_form_submit($form, &$form_state)
+{
+	variable_set('clientid_twitter',$form_state['values']['clientid']);
+	variable_set('clientsecret_twitter',$form_state['values']['clientsecret']);
+	dsm('Twitter form creds added!');
+	return $form;
+}
+
+/**
+	* A response for a route
+	*/
+function twitter_callback()
+{
+
+}
+
+/**
+	* A route reponse
+	* @return string
+	*/
+function twitter_connect() {
+//	$oauth_creds = [
+//		'clientId'                => variable_get('clientid_twitter'),    // The client ID assigned to you by the provider
+//		'clientSecret'            => variable_get('clientsecret_twitter'),   // The client password assigned to you by the provider
+//		'redirectUri'             => 'http://127.0.0.1/twitter-callback',
+//		'urlAuthenticate'         => 'https://api.twitter.com/oauth/authenticate',
+//		'urlAuthorize'            => 'https://api.twitter.com/oauth/authorize',
+//		'urlAccessToken'          => 'https://api.twitter.com/oauth/token',
+//		'urlResourceOwnerDetails' => 'https://api.twitter.com/oauth/'
+//	];
+//
+//	$requestTokenUrl = "http://api.twitter.com/oauth/request_token";
+//	$authorizeUrl = "http://api.twitter.com/oauth/authorize";
+//	$oauthTimestamp = time();
+//	$nonce = md5(mt_rand());
+//	$oauthSignatureMethod = "HMAC-SHA1";
+//	$oauthVersion = "1.0";
+//	$consumerKey = variable_get('clientid_twitter');
+//	$consumerSecret = variable_get('clientsecret_twitter');
+//	$callback = 'http://127.0.0.1/twitter-callback';
+//
+//	$server = new League\OAuth1\Client\Server\Twitter(array(
+//		'getTemporaryCredentials' => 'a',
+//		'identifier' => 'your-identifier',
+//		'secret' => $consumerSecret,
+//		'callback_uri' => $callback,
+//	));
+//	$temporaryCredentials = $server->getTemporaryCredentials();
+//// Start session
+////	session_start();
+//// Step 4
+//	if (isset($_GET['user'])) {
+//		// Check somebody hasn't manually entered this URL in,
+//		// by checking that we have the token credentials in
+//		// the session.
+//		if ( ! isset($_SESSION['token_credentials'])) {
+//			echo 'No token credentials.';
+//			exit(1);
+//		}
+//		// Retrieve our token credentials. From here, it's play time!
+//		$tokenCredentials = unserialize($_SESSION['token_credentials']);
+//		// // Below is an example of retrieving the identifier & secret
+//		// // (formally known as access token key & secret in earlier
+//		// // OAuth 1.0 specs).
+//		// $identifier = $tokenCredentials->getIdentifier();
+//		// $secret = $tokenCredentials->getSecret();
+//		// Some OAuth clients try to act as an API wrapper for
+//		// the server and it's API. We don't. This is what you
+//		// get - the ability to access basic information. If
+//		// you want to get fancy, you should be grabbing a
+//		// package for interacting with the APIs, by using
+//		// the identifier & secret that this package was
+//		// designed to retrieve for you. But, for fun,
+//		// here's basic user information.
+//		$user = $server->getUserDetails($tokenCredentials);
+//		var_dump($user);
+//// Step 3
+//	} elseif (isset($_GET['oauth_token']) && isset($_GET['oauth_verifier'])) {
+//		// Retrieve the temporary credentials from step 2
+//		$temporaryCredentials = unserialize($_SESSION['temporary_credentials']);
+//		// Third and final part to OAuth 1.0 authentication is to retrieve token
+//		// credentials (formally known as access tokens in earlier OAuth 1.0
+//		// specs).
+//		$tokenCredentials = $server->getTokenCredentials($temporaryCredentials, $_GET['oauth_token'], $_GET['oauth_verifier']);
+//		// Now, we'll store the token credentials and discard the temporary
+//		// ones - they're irrelevant at this stage.
+//		unset($_SESSION['temporary_credentials']);
+//		$_SESSION['token_credentials'] = serialize($tokenCredentials);
+//		session_write_close();
+//		// Redirect to the user page
+//		header("Location: http://{$_SERVER['HTTP_HOST']}/?user=user");
+//		exit;
+//// Step 2.5 - denied request to authorize client
+//	} elseif (isset($_GET['denied'])) {
+//		echo 'Hey! You denied the client access to your Twitter account! If you did this by mistake, you should <a href="?go=go">try again</a>.';
+//// Step 2
+//	} elseif (isset($_GET['go'])) {
+//		// First part of OAuth 1.0 authentication is retrieving temporary credentials.
+//		// These identify you as a client to the server.
+//		$temporaryCredentials = $server->getTemporaryCredentials();
+//		// Store the credentials in the session.
+//		$_SESSION['temporary_credentials'] = serialize($temporaryCredentials);
+//		session_write_close();
+//		// Second part of OAuth 1.0 authentication is to redirect the
+//		// resource owner to the login screen on the server.
+//		$server->authorize($temporaryCredentials);
+//// Step 1
+//	} else {
+//		// Display link to start process
+//		echo '<a href="?go=go">Login</a>';
+//	}
+
+
+	return '';
+}
+
+function mc_connect() {
+	return '';
+}
+function mc_callback() {
+
+
+	dsm(variable_get('mc_clientid'));
+	dsm(variable_get('mc_clientsecret'));
+
+	$provider = new \League\OAuth2\Client\Provider\GenericProvider([
+		'clientId'                => variable_get('mc_clientid'),    // The client ID assigned to you by the provider
+		'clientSecret'            => variable_get('mc_clientsecret'),   // The client password assigned to you by the provider
+		'redirectUri'             => 'http://127.0.0.1/callback',
+		'urlAuthorize'            => 'https://login.mailchimp.com/oauth2/authorize',
+		'urlAccessToken'          => 'https://login.mailchimp.com/oauth2/token',
+		'urlResourceOwnerDetails' => 'https://login.mailchimp.com/oauth2/'
+	]);
+
+// If we don't have an authorization code then get one
+	if (!isset($_GET['code'])) {
+
+		// Fetch the authorization URL from the provider; this returns the
+		// urlAuthorize option and generates and applies any necessary parameters
+		// (e.g. state).
+		$authorizationUrl = $provider->getAuthorizationUrl();
+
+		// Get the state generated for you and store it to the session.
+		$_SESSION['oauth2state'] = $provider->getState();
+
+		// Redirect the user to the authorization URL.
+		header('Location: ' . $authorizationUrl);
+		exit;
+
+// Check given state against previously stored one to mitigate CSRF attack
+	} elseif (empty($_GET['state']) || (isset($_SESSION['oauth2state']) && $_GET['state'] !== $_SESSION['oauth2state'])) {
+
+		if (isset($_SESSION['oauth2state'])) {
+			unset($_SESSION['oauth2state']);
+		}
+
+		exit('Invalid state');
+
+	} else {
+
+		try {
+
+			// Try to get an access token using the authorization code grant.
+			$accessToken = $provider->getAccessToken('authorization_code', [
+				'code' => $_GET['code']
+			]);
+
+			// We have an access token, which we may use in authenticated
+			// requests against the service provider's API.
+			variable_set('mc_token',$accessToken->getToken());
+			return 'Access Token: ' . $accessToken->getToken() . "<br>";
+
+		} catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+
+			// Failed to get the access token or user details.
+			exit($e->getMessage());
+
+		}
+
+	}
+//	return 'hi callback';
+}
+
+
+/**
+	* Retun form to add mailchimp items
+	*/
+function output_mc_form($form,&$form_state)
+{
+	$form['email'] = array(
+		'#type' => 'textfield', //you can find a list of available types in the form api
+		'#title' => 'Sign Up Email',
+//		'#size' => 10,
+//		'#maxlength' => 10,
+		'#required' => TRUE, //make this field required
+		'#prefix' => '<div id="custom-mc-sign-up">',
+	);
+	$form['submit_button'] = array(
+		'#type' => 'submit',
+		'#value' => t('Sign Me Up!'),
+		'#suffix' => '</div>',
+		'#ajax' => array(
+			'callback' => 'ajax_mc_submit',
+			'wrapper' => 'custom-mc-sign-up',
+			'method' => 'replace',
+			'effect' => 'fade',
+		)
+	);
+	return $form;
+}
+function ajax_mc_submit($form,&$form_state)
+{
+	return $form;
+}
+function output_mc_form_validate($form,&$form_state)
+{
+		return $form;
+}
+function output_mc_form_submit($form,&$form_state)
+{
+//	dsm($form_state);
+	$accessToken = variable_get('mc_token');
+	$endpoint = variable_get('mc_api_endpoint');
+	if(!$endpoint)
+	{
+		$option = array(
+			'base_uri' => "https://login.mailchimp.com",
+		);
+		$client = new GuzzleHttp\Client($option);
+		$headers = array(
+			'User-Agent' => 'oauth2-draft-v10',
+			'Accept' => 'application/json',
+			'Authorization' => 'OAuth '.$accessToken
+		);
+		$request = new GuzzleHttp\Psr7\Request('GET', '/oauth2/metadata', $headers, null);
+		try
+		{
+			$response = $client->send($request);
+			$response = $response->getBody()->getContents();
+			$response = \GuzzleHttp\json_decode($response);
+			variable_set('mc_api_endpoint',$response->api_endpoint);
+			$endpoint = variable_get('mc_api_endpoint');
+		}catch(GuzzleHttp\Exception\ClientException $e) {}
+	}
+
+	$option = array(
+		'base_uri' => $endpoint,
+	);
+	$client = new GuzzleHttp\Client($option);
+	$data = array(
+		'email_address' => $form_state['values']['email'],
+		'status' => 'subscribed',
+		"merge_fields" => array(
+			 "FNAME"=> "myfirstname",
+    "LNAME"=> "mylast!"
+			),
+	);
+	$headers = array(
+		'User-Agent' => 'oauth2-draft-v10',
+		'Accept' => 'application/json',
+		'Authorization' => 'OAuth '.$accessToken,
+		'header' => 'content-type: application/json',
+	);
+//	$request = new GuzzleHttp\Psr7\Request('GET', '/3.0/lists', $headers, null);
+	//f4b5832d63
+	$body = json_encode($data);
+	$request = new GuzzleHttp\Psr7\Request('POST', '/3.0/lists/f4b5832d63/members', $headers, $body);
+//	dsm($request->getHeaders());
+	try
+	{
+		$response = $client->send($request);
+//		dsm(($response->getBody()->getContents()));
+		drupal_set_message($form_state['values']['email'].' was added to our list!','status');
+	}catch(GuzzleHttp\Exception\ClientException $e)
+	{
+//		dsm($e->getRequest()->getHeaders());
+		$message = drupal_json_decode($e->getResponse()->getBody()->getContents());
+		drupal_set_message($message['detail'],'error');
+	}
+	return $form;
+}
+
+/**
+	* A method that returns a custom form
+	* @link https://www.drupal.org/docs/7/howtos/how-to-make-a-simple-module-with-a-form-and-menu-link
+	* @param $form
+	* @param $form_state
+	* @return mixed
+	*/
+function output_a_custom_form($form, &$form_state){
+	$form['clientid'] = array(
+		'#type' => 'textfield', //you can find a list of available types in the form api
+		'#title' => 'clientid',
+//		'#size' => 10,
+//		'#maxlength' => 10,
+		'#required' => TRUE, //make this field required
+		'#prefix' => '<div id="the-form">',
+	);
+	$form['clientsecret'] = array(
+		'#type' => 'textfield', //you can find a list of available types in the form api
+		'#title' => 'clientsecret',
+//		'#size' => 15,
+//		'#maxlength' => 5,
+		'#required' => TRUE, //make this field required
+	);
+//	$form['age'] = array(
+//		'#type' => 'textfield', //you can find a list of available types in the form api
+//		'#title' => 'Age',
+//		'#size' => 15,
+//		'#maxlength' => 5,
+//		'#required' => TRUE, //make this field required
+//	);
+//	$form['gender'] = array(
+//		'#type' => 'textfield', //you can find a list of available types in the form api
+//		'#title' => 'Gender',
+//		'#size' => 15,
+//		'#maxlength' => 5,
+//		'#required' => TRUE, //make this field required
+//	);
+//	$default = !empty($form_state['values']['howmany_select']) ? $form_state['values']['howmany_select'] : 1;
+//	$form['howmany_select'] = array(
+//		'#title' => t('How many checkboxes do you want?'),
+//		'#type' => 'select',
+//		'#options' => array(1 => 1, 2 => 2, 3 => 3, 4 => 4),
+//		'#default_value' => $default,
+////		'#ajax' => array(
+////			'callback' => 'ajax_example_autocheckboxes_callback',
+//////			'wrapper' => 'checkboxes-div',
+////			'method' => 'replace',
+////			'effect' => 'fade',
+////		)
+//	);
+	$form['submit_button'] = array(
+		'#type' => 'submit',
+		'#value' => t('Click Here!'),
+		'#suffix' => '</div>',
+//		'#ajax' => array(
+//			'callback' => 'ajax_example_submit',
+//			'wrapper' => 'the-form',
+//			'method' => 'replace',
+//			'effect' => 'fade',
+//		)
+
+	);
+	return $form;
+}
+
+/**
+	* Custom validation added to the custom output_a_custom_form method
+	* @param $form
+	* @param $form_state
+	*/
+function output_a_custom_form_validate($form, &$form_state) {
+//	dsm($form);
+//	dsm($form_state);
+//	if (!($form_state['values']['price'] > 0)){
+//		form_set_error('price', t('Price must be a positive number!!!!!!!.'));
+//	}
+}
+
+
+/**
+	* A helper method to print variables int the console.log on ajax requests
+	* @link and example to console log https://drupal.stackexchange.com/questions/131294/is-there-an-ajax-command-i-can-use-to-debug-php-variables-without-breaking-ajax/131297#131297
+	* @param $var
+	* @return array
+	*/
+function custom_ajax_console_log($var) {
+	$command = array(
+		'command' => 'console_log',
+		'variables' => $var,
+	);
+	$commands[] = $command;
+//	print ajax_render($commands);
+	ajax_deliver(array('#type' => 'ajax', '#commands' => $commands));
+	drupal_exit();
+}
+/**
+	* Custom post submit functionality for our output_a_custom_form method
+	* @param $form
+	* @param $form_state
+	*/
+function output_a_custom_form_submit($form, &$form_state) {
+	variable_set('mc_clientid',$form_state['values']['clientid']);
+	variable_set('mc_clientsecret',$form_state['values']['clientsecret']);
+	dsm('cool cool your form has been submitted!');
+}
+
+/**
+	* Callback element needs only select the portion of the form to be updated.
+	* Since #ajax['callback'] return can be HTML or a renderable array (or an
+	* array of commands), we can just return a piece of the form.
+	*/
+function ajax_example_autocheckboxes_callback($form, $form_state) {
+	return $form['checkboxes_fieldset'];
+}
+
+
+/**
+	* An example ajax functionality to accompany a form
+	* @param $form
+	* @param $form_state
+	* @return string
+	*/
+function ajax_example_submit($form, $form_state) {
+	return $form;
+}
