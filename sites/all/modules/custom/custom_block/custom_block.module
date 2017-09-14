@@ -10,6 +10,11 @@ include('vendor/autoload.php');
 	*	This module provides a block that lists all of the
 	* installed modules. It illustrates coding standards,
 	* practices, and API use for Drupal 7.
+	*
+	* @link (All default theme funcitons)[https://api.drupal.org/api/drupal/modules%21system%21theme.api.php/group/themeable/7.x]
+	*
+	* modules can create their own complex render element by implementing hook_element_info(), using the properties speci ed by drupal_render(), and by creating any render callbacks and associated APIs.
+	* @link (custom elements)[https://api.drupal.org/api/drupal/modules%21system%21system.api.php/function/hook_element_info/7.x]
 	*/
 
 /**
@@ -119,12 +124,14 @@ function custom_block_theme($existing, $type, $theme, $path)
 				'da_items' => array(),
 				'da_wrappa' => null
 			),
-			'template' => 'templates/mymodule-template'
+			'template' => 'custom--block-listing-overrides',
+			'pattern' => 'custom__block_listing_overrides',
+			'path' => sprintf('%s/templates', $path),
 		),
 
 		'custom_block_print_form' => array(
 			'render element' => 'myrenderable', // this will hold any variables pass to our renderable array
-			'function' => 'control_the_themeing'
+			'function' => 'control_the_themeing',
 		)
 	);
 }
@@ -163,14 +170,82 @@ function custom_block_menu() {
 	* @param $variables
 	* @return string
 	*/
-function control_the_themeing($variables){
+	function control_the_themeing(&$variables){
+//	dsm($variables);
+//	dsm(variable_get('mc_clientid'));
+//	dsm(variable_get('mc_clientsecret'));
+	$output = drupal_render($variables['myrenderable']['#children']);
+	if(isset($variables['myrenderable']['extras']))
+	{
+		foreach($variables['myrenderable']['extras'] as $key => $val)
+		{
+			$output .= ' '.$val;
+		}
+	}
+	return $output;
+}
+
+function template_preprocess_custom_block_listing(&$variables,$hook) {
+	$variables['theme_hook_suggestions'][] = 'custom__block_listing_overrides';
+	$variables['theme_hook_suggestions'][] = 'custom__block_listing_overrides_'.$variables['id'];
+//	$variables['theme_hook_suggestions'][] = 'custom__block_listing_overrides_'.$variables['id'];
+//	dsm($variables);
+}
+
+/**
+	* implement template_preprocess_themehook()
+	* a default preprocess function to run before all other preprocess
+	* hook, as the name suggests, contains the name of the actual theme hook currently being run.
+	* @param $variables
+	*/
+function template_preprocess_custom_block_print_form(&$variables,$hook)
+{
+//	$variables['theme_hook_suggestions'][] = '__custom_block_print_form';
+//	$variables['myrenderable']['extras'][] = 'hi';
+//	$variables['myrenderable']['extras'][] = 'hello';
+	$variables['myrenderable']['clases_array'] = array(drupal_html_class($hook));
+
+	$variables['myrenderable']['#children'][] = array(
+		'#prefix' => '<div class="plain">',
+		'#markup' => '<h2>' . t('There is no spoon.') . '</h2>', '#suffix' => '</div>',
+	);
+	$variables['myrenderable']['#children'][] = array(
+		'#theme' => 'html_tag',
+		'#attributes' => array(
+			'style' => 'font-weight:bold;color:green;'
+		),
+		'#tag' => 'h2',
+		'#value' => 'This is the custom Form'
+	);
 	$form = drupal_get_form('output_a_custom_form');
 	$form_mc = drupal_get_form('output_mc_form');
 	$form_twitter = drupal_get_form('output_a_twitter_form');
-//	dsm(variable_get('mc_clientid'));
-//	dsm(variable_get('mc_clientsecret'));
-	$output = '<h1>This is the custom Form! </h1>' . drupal_render($form) . drupal_render($form_mc) .drupal_render($form_twitter);
-	return $output;
+	$variables['myrenderable']['#children'][] = array(
+		'#prefix' => '<div class="less-simple">', '#suffix' => '!</div>',
+		'kitten' => array(
+			'#type' => 'link',
+			'#title' => t('a link!'),
+			'#href' => 'test',
+//			'#access' => false,
+		),
+		'separator' => array(
+			'#markup' => '<br />',
+		),
+		'domo' => array(
+			'#theme' => 'username',
+			'#account' => 'edgarsaavedraa@gmail.com',
+		),
+	);
+	$variables['myrenderable']['#children'][] = $form;
+	$variables['myrenderable']['#children'][] = array(
+		'#theme' => 'custom_block_listing',
+		'#da_items' => array('hahahaha','ajajajja'),
+		'#da_wrappa'  => 'ol',
+//				'#title' => 'title',
+		'#attributes' => array(),
+	);
+	$variables['myrenderable']['#children'][] = $form_mc;
+	$variables['myrenderable']['#children'][] = $form_twitter;
 }
 
 /**
