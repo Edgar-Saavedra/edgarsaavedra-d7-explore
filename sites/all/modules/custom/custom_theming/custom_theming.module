@@ -1,0 +1,302 @@
+<?php
+
+/**
+	* With all core Drupal implementations :
+	* theme() will check for a theme__HOOK implementation before using the default item_list theme hook.
+	*/
+
+// default theme implementations : https://api.drupal.org/api/drupal/modules%21system%21theme.api.php/group/themeable/7.x
+
+define('SINGLE_BLOG_NODE_TYPE', 'article');
+define('SINGLE_BLOG_LIST_COUNT', 2);
+
+
+/**
+	* We could put the database query inside a Drupal hook,
+	* but that reduces the chance that other modules can
+	* integrate with your module in ways you could never anticipate
+	* @param $number
+	* @return \QueryExtendableInterface
+	*
+	*/
+function custom_search_single_blog_list($range = array(0,1)) {
+	//use data base api
+	// @see http://drupal.org/node/310069
+
+	//We're using Drupal's Database API to query for the data
+	// node ID, title, creation date and author (uid stands for user ID)
+	//  that are published (status = 1)
+	//  latest nodes that have been created.
+	$query = null;
+	try {
+		$query = db_select('node','n')
+			->fields('n',array('nid','title','created','uid'))
+			->condition('type',SINGLE_BLOG_NODE_TYPE)
+			->condition('status',1)
+			->orderBy('created','DESC')
+			->range($range[0],$range[1])
+			->addTag('node_access');
+		$query = $query->execute();
+	} catch (\Exception $e) {
+		krumo::dump($e);
+	}
+	return $query;
+}
+
+/**
+	* Implements hook_block_info()
+	*/
+function custom_theming_block_info() {
+	$blocks = array();
+	$blocks['custom_theming_recent'] = array(
+		'info' => t('Custom Recent blog posts')
+	);
+	$blocks['custom_theming_loadajax'] = array(
+		'info' => t('Custom load ajax posts')
+	);
+	return $blocks;
+}
+
+/**
+	* this is an example to add to an item children using a pre-rnder function
+	* @param $elements
+	* @return mixed
+	*/
+function single_blog_item_list_child_render($elements) {
+
+	foreach (array_keys($elements['#items']) AS $key) {
+		// Take the renderable array that we set in
+		// single_blog_block_view() and render it into the string
+		// that theme_item_list() expects.
+		if (is_array($elements['#items'][$key]['a_key'])) {
+			if(isset($elements['#items'][$key]['a_key']['#somestuff']))
+			{
+//				$elements['#items'][$key]['data'] .= ' hi'.
+//				drupal_render($elements['#items'][$key]['a_key']);
+			}
+
+//			krumo::dump($elements['#items'][$key]);
+		}
+	}
+	return $elements;
+}
+/**
+	* Implements hook_block_view()
+	*/
+function custom_theming_block_view($delta = '') {
+	//create empty block
+	$block = array(
+		'subject' => '',
+		'content' => array(),
+	);
+
+	if ($delta == 'custom_theming_loadajax') {
+		$form = drupal_get_form('output_custom_ajax_load_posts');
+		$block['subject'] .= 'Ajax load posts';
+
+		$markup = array(
+			'#prefix' => '<div id="update-the-ajax-loaded-posts">',
+			'#markup' => '<h2>' . t('There is no spoon.') . '</h2>', '#suffix' => '</div>',
+		);
+//		$block['content'] .= drupal_render($markup);
+//		$block['content'] .= drupal_render($form);
+
+		$block['content']['child1'] = $markup;
+		$block['content']['child2'] = $form;
+		return $block;
+	}
+
+	//check if block is being requestted
+	if ($delta == 'custom_theming_recent') {
+		$block['subject'] = t('Custom Recent blog posts Subject');
+		//check if user can adccess content
+		if (user_access('access content')) {
+			//retrieve most recent nodes
+
+			$search = array(0,2);
+			$result = custom_search_single_blog_list($search);
+//			(array(0,2));
+			krumo::dump($result);
+			//create links for each blog entry
+			$items = array();
+			foreach ($result as $node) {
+				$items[] = array(
+					'data' => l($node->title,'node/'.$node->nid),
+					'class' => array('node-'.$node->nid),
+					'a_key' => array(
+						'#markup' => 'test',
+						'#somestuff' => true
+					)
+				);
+			}
+
+			/**
+				* With all core Drupal implementations :
+				* theme() will check for a theme__HOOK implementation before using the default item_list theme hook.
+				*/
+			if (!empty($items)) {
+				$theme = array(
+					'#theme' => 'item_list__custom_theming',
+					'#items' => $items,
+					'#prefix' => '<div id="update-ajax-list">',
+					'#sufix' => '</div>',
+					'#pre_render' => array('single_blog_item_list_child_render'),
+				);
+				$block['content']['list'] = $theme;
+			}
+//			$block['content']['#markup'] = 'hi';
+//			drupal_add_css(drupal_get_path('module','custom_theming').'/assets/css/include-example.css');
+			$block['content']['#attached']['css'] = array(
+				drupal_get_path('module','custom_theming').'/assets/css/include-example.css'
+			) ;
+
+		}
+		return $block;
+	}
+
+}
+
+/****************************************
+	*  Custom form
+	*/
+
+
+/**
+	* An example ajax functionality to accompany a form
+	* @param $form
+	* @param $form_state
+	* @return string
+	*/
+function ajax_output_custom_ajax_load_posts_prev($form, $form_state) {
+	$count = variable_get('ajax_current_page');
+	if(!is_int($count)) {
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+	elseif($count < 0)
+	{
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+	elseif($count >= 0 )
+	{
+		$count -=2;
+		variable_set('ajax_current_page',$count);
+	}
+	else {
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+//	update_ajax_vars(array('test2222'));
+	$search = array($count,2);
+	$result = custom_search_single_blog_list($search);
+
+	$items = array();
+	foreach ($result as $node) {
+		$items[] = array(
+			'data' => l($node->title,'node/'.$node->nid),
+			'class' => array('node-'.$node->nid),
+		);
+	}
+	if (!empty($items)) {
+		$theme = array(
+			'#theme' => 'item_list__custom_theming',
+			'#items' => $items,
+			'#pre_render' => array('single_blog_item_list_child_render'),
+		);
+		$result = drupal_render($theme);
+	}else{
+		$result = 'No items';
+	}
+
+
+
+	$markup = array(
+		'#prefix' => '<div id="update-the-ajax-loaded-posts">',
+		'#markup' => '<h2>' . t('next.') . '</h2>'.$result, '#suffix' => '</div>',
+	);
+	return $markup;
+}
+
+function ajax_output_custom_ajax_load_posts_next($form, $form_state) {
+	$count = variable_get('ajax_current_page');
+	if(!is_int($count)) {
+		//this should be done not in the database
+		// this is done for lack of a better solution and just as a quick
+		// test
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+	elseif($count < 0)
+	{
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+	elseif($count >=0 )
+	{
+		$count +=2;
+		variable_set('ajax_current_page',$count);
+	}
+	else
+	{
+		variable_set('ajax_current_page',0);
+		$count = 0;
+	}
+//	update_ajax_vars(array('test2222'));
+	$search = array($count,2);
+	$result = custom_search_single_blog_list($search);
+
+
+	$items = array();
+	foreach ($result as $node) {
+		$items[] = array(
+			'data' => l($node->title,'node/'.$node->nid),
+			'class' => array('node-'.$node->nid),
+		);
+	}
+	if (!empty($items)) {
+		$theme = array(
+			'#theme' => 'item_list__custom_theming',
+			'#items' => $items,
+			'#pre_render' => array('single_blog_item_list_child_render'),
+		);
+		$result = drupal_render($theme);
+	}else{
+		$result = 'No items';
+	}
+
+
+
+	$markup = array(
+		'#prefix' => '<div id="update-the-ajax-loaded-posts">',
+		'#markup' => '<h2>' . t('next.') . '</h2>'.$result, '#suffix' => '</div>',
+	);
+	return $markup;
+}
+
+function output_custom_ajax_load_posts($form, &$form_state) {
+	$form['prev_button'] = array(
+		'#type' => 'submit',
+		'#value' => t('<- 	Prevs'),
+		'#ajax' => array(
+			'callback' => 'ajax_output_custom_ajax_load_posts_prev',
+			'wrapper' => 'update-the-ajax-loaded-posts',
+//		'wrapper' => 'update-ajax-list',
+			'method' => 'replace',
+			'effect' => 'fade',
+		)
+
+	);
+	$form['next_button'] = array(
+		'#type' => 'submit',
+		'#value' => t('Next ->'),
+		'#ajax' => array(
+			'callback' => 'ajax_output_custom_ajax_load_posts_next',
+			'wrapper' => 'update-the-ajax-loaded-posts',
+//		'wrapper' => 'update-ajax-list',
+			'method' => 'replace',
+			'effect' => 'fade',
+		)
+	);
+	return $form;
+}

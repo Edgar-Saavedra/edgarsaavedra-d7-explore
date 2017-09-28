@@ -1,0 +1,9 @@
+;$Id$
+name = custom_theming
+description = A custom_theming module.
+package = Custom
+core = 7.x
+files[] = custom_theming.module
+files[] = tests/custom_theming.test
+;scripts[] = assets/dist/script.js
+;dependencies[] = dep

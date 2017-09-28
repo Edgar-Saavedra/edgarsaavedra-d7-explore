@@ -1,0 +1,63 @@
+<?php
+
+function custom_databases_theme($existing, $type, $theme, $path) {
+	return array(
+		'custom_databases' => array(
+			'function' => '_theme_custom_databases',
+			'variables' => array(),
+		)
+	);
+}
+function _theme_custom_databases(&$variables) {
+
+	$nodes = db_query('SELECT n.nid, n.title FROM {node} n WHERE type = :type',array(':type'=>'article'));
+
+	$select = db_select('node','n')
+		->fields('n',array('nid'))
+		->condition('status',1)
+		->extend('PagerDefault')
+		->limit(1)
+		->execute();
+
+	dsm($nodes->fetchAll());
+	dsm($select->fetchAll());
+
+	$output = 'the output!';
+	return $output;
+}
+
+function template_preprocess_custom_databases_theme(&$variables,$hook) {
+
+}
+
+/**
+	* implements hook_menu()
+	* @return mixed
+	*/
+function custom_databases_menu() {
+	$items = array();
+	$items['test-databases'] = array(
+		'page callback' => '_test_databases_content',
+		'access callback' => true,
+	);
+	return $items;
+}
+
+function _test_databases_content() {
+	$content = '';
+	$children = array(
+		'title' => array(
+			'#theme' => 'html_tag',
+			'#attributes' => array(
+				'style' => 'font-weight:bold;color:green;'
+			),
+			'#tag' => 'h2',
+			'#value' => 'My Custom route'
+		),
+		'example1' => array(
+			'#theme' => 'custom_databases',
+		)
+	);
+	$content .= drupal_render($children);
+	return $content;
+}

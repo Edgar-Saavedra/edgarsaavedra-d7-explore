@@ -1,0 +1,8 @@
+;$Id$
+name = custom_database
+description = A custom_database module.
+package = Custom
+core = 7.x
+files[] = custom_database.module
+files[] = tests/custom_database.test
+;dependencies[] = dep
