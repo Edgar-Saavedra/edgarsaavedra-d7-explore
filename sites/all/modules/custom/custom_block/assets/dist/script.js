@@ -1,6 +1,9 @@
 
 (function ($) {
- Drupal.ajax.prototype.commands.console_log = function(ajax, data, status) {
-  console.log(data);
- };
+ if(Drupal.ajax)
+ {
+  Drupal.ajax.prototype.commands.console_log = function(ajax, data, status) {
+   console.log(data);
+  };
+ }
 })(jQuery);
